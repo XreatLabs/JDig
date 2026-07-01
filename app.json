@@ -30,6 +30,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "dda470f7-42ed-4120-b58d-4ad8039c658e"
+      }
+    },
+    "owner": "kraters"
   }
 }
