@@ -52,14 +52,19 @@ export async function readLine(state: ScannerState, prompt: string): Promise<str
   }
   return new Promise<string>((resolve, reject) => {
     state.pendingReject = reject;
-    const cleanup = () => {
-      if (state.pendingReject === reject) state.pendingReject = undefined;
-    };
     // Wire abort: reject with a RunAbortedError so the engine surfaces it as
     // an abort (not a generic error) and no read leaks.
     const onAbort = () => {
       reject(new RunAbortedError('aborted', 'Program was stopped.'));
-      cleanup();
+      if (state.pendingReject === reject) state.pendingReject = undefined;
+      if (state.signal) state.signal.removeEventListener('abort', onAbort);
+    };
+    // Clear the pending resolver AND detach the abort listener on any settle
+    // path (resolve or reject), so the listener doesn't linger on the signal
+    // until the per-run AbortController is GC'd.
+    const cleanup = () => {
+      if (state.pendingReject === reject) state.pendingReject = undefined;
+      if (state.signal) state.signal.removeEventListener('abort', onAbort);
     };
     if (state.signal) {
       if (state.signal.aborted) { onAbort(); return; }

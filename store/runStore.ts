@@ -155,7 +155,10 @@ export const useRunStore = create<RunStore>((set, get) => ({
     if (pending) {
       pending.req.reject(new Error('Program was stopped.'));
     }
-    set({ pending: null, inputPrompt: null, state: 'running' });
+    // Settle to 'done' immediately so the badge doesn't flash "Running" while
+    // the aborted run unwinds; the in-flight runJava promise still resolves via
+    // the controller guard below and sets result.reason='aborted'.
+    set({ pending: null, inputPrompt: null, state: 'done' });
   },
 
   dispose: () => {

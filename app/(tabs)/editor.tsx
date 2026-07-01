@@ -65,12 +65,16 @@ export default function EditorScreen() {
   const projectIdRef = useRef(projectId);
   projectIdRef.current = projectId;
 
-  // Re-sync when the project id changes or the store source changes externally.
+  // Re-sync local state ONLY when switching projects. Gating on projectId
+  // (not updatedAt) avoids clobbering in-flight typing: every debounced autosave
+  // bumps updatedAt, which would otherwise retrigger this down-sync and
+  // overwrite unsaved keystrokes with the last-saved value. Compare against
+  // sourceRef (always fresh) instead of the closure-captured `source`.
   useEffect(() => {
-    if (project && project.source !== source) setSource(project.source);
+    if (project && project.source !== sourceRef.current) setSource(project.source);
     if (project && project.name !== name) setName(project.name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, project?.updatedAt]);
+  }, [projectId]);
 
   // Debounced autosave of source into the projects store (AC3 persistence).
   const onSourceChange = useCallback(
