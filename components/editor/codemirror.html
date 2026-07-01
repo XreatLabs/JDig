@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>JDig Editor</title>
+    <style>
+      /* Reset + base. The CM6 JS attaches the editor under #editor. */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background: #ffffff;
+        /* Prevent the WebView from interceptating scroll/gestures. */
+        -webkit-overflow-scrolling: touch;
+      }
+      #editor {
+        height: 100%;
+        width: 100%;
+      }
+      .cm-editor {
+        height: 100%;
+      }
+      .cm-scroller {
+        overflow: auto;
+        /* iOS momentum scrolling. */
+        -webkit-overflow-scrolling: touch;
+      }
+      /* CodeMirror default light syntax token colors (Java). */
+      .tok-keyword {
+        color: #0000ff;
+      }
+      .tok-string {
+        color: #a31515;
+      }
+      .tok-number {
+        color: #098658;
+      }
+      .tok-comment {
+        color: #008000;
+        font-style: italic;
+      }
+      .tok-typeName {
+        color: #267f99;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <!-- BUNDLE_PLACEHOLDER -->
+  </body>
+</html>
