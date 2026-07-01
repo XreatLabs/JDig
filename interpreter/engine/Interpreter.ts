@@ -13,7 +13,7 @@
  * UI and can be aborted (Stop) within ~500ms (AC4).
  */
 
-import { Environment } from './Environment';
+import { Environment, FieldScopeEnvironment } from './Environment';
 import { Scheduler, RunAbortedError } from './scheduler';
 import type {
   AssignmentExpressionNode, BinaryExpressionNode, BinaryOperator,
@@ -597,7 +597,16 @@ export class Interpreter {
   private async invokeMethod(cls: ClassDeclarationNode, method: MethodDeclarationNode, instance: JObject | null, args: Value[], callerEnv: Environment): Promise<Value> {
     // Fresh method scope chained to the caller (so globals + class statics +
     // enclosing symbols resolve through the scope chain).
-    const env = new Environment(callerEnv, cls.name);
+    //
+    // For INSTANCE (non-static) methods we insert a FieldScopeEnvironment
+    // between the method scope and the caller, so bare names resolve to the
+    // receiver's instance fields AFTER locals/params but BEFORE globals —
+    // matching real Java semantics (`return width * height;` works without
+    // `this.`). Locals/params still shadow fields.
+    const fieldScope = instance
+      ? new FieldScopeEnvironment(instance.fields, callerEnv, cls.name)
+      : callerEnv;
+    const env = new Environment(fieldScope, cls.name);
     if (instance) env.define('this', instance);
     // bind params
     method.params.forEach((p: ParameterNode, i: number) => {
@@ -631,8 +640,10 @@ export class Interpreter {
     const cls = this.classTable.get(className);
     if (!cls) throw new RuntimeError(`Cannot find class: ${className}`);
     const obj: JObject = { __object: true, className, fields: new Map() };
-    // init fields with an env that can see `this`
-    const initEnv = new Environment(null, cls.name);
+    // init fields with an env that can see `this` and (via the field scope)
+    // resolve already-initialized sibling fields by bare name.
+    const fieldScope = new FieldScopeEnvironment(obj.fields, null, cls.name);
+    const initEnv = new Environment(fieldScope, cls.name);
     initEnv.define('this', obj);
     await this.initInstanceFields(cls, obj, initEnv);
     // run constructor if any

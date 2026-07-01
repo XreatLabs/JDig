@@ -112,6 +112,61 @@ describe('classes and methods', () => {
   });
 });
 
+describe('bare instance field resolution (no `this.` required)', () => {
+  it('reads instance fields by bare name', async () => {
+    const out = await run(`public class Rect {
+      int width;
+      int height;
+      Rect(int w, int h) { width = w; height = h; }
+      int area() { return width * height; }
+      public static void main(String[] a){
+        Rect r = new Rect(3, 4);
+        System.out.println(r.area());
+      }
+    }`);
+    expect(out.output).toBe('12\n');
+  });
+
+  it('assigns instance fields by bare name', async () => {
+    const out = await run(`public class Counter {
+      int count;
+      void inc() { count = count + 1; }
+      int get() { return count; }
+      public static void main(String[] a){
+        Counter c = new Counter();
+        c.inc(); c.inc(); c.inc();
+        System.out.println(c.get());
+      }
+    }`);
+    expect(out.output).toBe('3\n');
+  });
+
+  it('a same-named param shadows the field (local wins; field still writable via this)', async () => {
+    const out = await run(`public class Box {
+      int value;
+      Box(int value) { this.value = value; }
+      int with(int value) { return value + this.value; }
+      public static void main(String[] a){
+        Box b = new Box(10);
+        System.out.println(b.with(5));
+      }
+    }`);
+    expect(out.output).toBe('15\n');
+  });
+
+  it('field initializer sees bare fields of a sibling declared earlier', async () => {
+    const out = await run(`public class M {
+      int base = 100;
+      int scaled = base * 2;
+      public static void main(String[] a){
+        M m = new M();
+        System.out.println(m.scaled);
+      }
+    }`);
+    expect(out.output).toBe('200\n');
+  });
+});
+
 describe('recursion', () => {
   it('factorial', async () => {
     const out = await run(`public class M {
