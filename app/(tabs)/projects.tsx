@@ -1,15 +1,14 @@
 /**
- * Projects list screen (Phase 4, step 20).
+ * Projects list screen (Phase 4 step 20 + Phase 5 visual pass).
  *
- * Cards (name + updatedAt), a "New" action, open (navigate to the editor with
- * the project id), and delete-with-confirm. Hydrates the projects store from
- * disk on mount.
+ * Cards (name + updatedAt + first-line preview), a "New" action, open
+ * (navigate to the Editor tab with the project id), and delete-with-confirm.
+ * Hydrates the projects store from disk on mount (AC3).
  *
- * Routing/ownership note: this worker owns only the screen file. The tab bar
- * and editor route are wired by task #7 (Phase 5). Navigation to the editor is
- * written against the planned route (`/editor?projectId=…`); until Phase 5
- * registers that route it is a safe no-op-ish push that Expo Router will resolve
- * once the route exists.
+ * Visual layer (Phase 5): restyled against the design tokens — consistent
+ * spacing scale, clear hierarchy (name > preview > time), generous separation
+ * between the action bar and the list, and 44pt-min touch targets. Logic is
+ * unchanged from the Phase 4 implementation.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -22,8 +21,11 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProjectsStore, type Project } from '@/store/projectsStore';
 import { TEMPLATES } from '@/data/templates';
+import { Button } from '@/components/ui/Button';
+import { color, space, type } from '@/theme/tokens';
 
 /** Relative-time formatter ("just now" / "5m" / "3h" / "2d" / date). */
 function relativeTime(ts: number): string {
@@ -45,10 +47,10 @@ export default function ProjectsScreen() {
   const create = useProjectsStore((s) => s.create);
   const remove = useProjectsStore((s) => s.remove);
   const select = useProjectsStore((s) => s.select);
+  const insets = useSafeAreaInsets();
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // Hydrate from disk once on mount (app-start persistence load, AC3).
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
@@ -65,9 +67,7 @@ export default function ProjectsScreen() {
   const openProject = useCallback(
     (p: Project) => {
       select(p.id);
-      // Routing target is wired in Phase 5 (task #7). Passing the id as a param
-      // is the agreed hand-off; the editor screen reads `projectId`.
-      router.push({ pathname: '/editor', params: { projectId: p.id } });
+      router.push({ pathname: '/(tabs)/editor', params: { projectId: p.id } });
     },
     [select],
   );
@@ -79,11 +79,7 @@ export default function ProjectsScreen() {
         `Delete "${p.name}"? This cannot be undone.`,
         [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => remove(p.id),
-          },
+          { text: 'Delete', style: 'destructive', onPress: () => remove(p.id) },
         ],
         { cancelable: true },
       );
@@ -117,31 +113,30 @@ export default function ProjectsScreen() {
   const renderItem = useCallback(
     ({ item }: { item: Project }) => (
       <Pressable
-        style={styles.card}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
         onPress={() => openProject(item)}
         onLongPress={() => confirmDelete(item)}
         accessibilityRole="button"
         accessibilityLabel={`Open project ${item.name}`}
       >
-        <View style={styles.cardMain}>
+        <View style={styles.cardBody}>
           <Text style={styles.cardName} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={styles.cardMeta} numberOfLines={1}>
+          <Text style={styles.cardPreview} numberOfLines={1}>
             {item.source.split('\n')[0].trim() || 'Empty project'}
           </Text>
-        </View>
-        <View style={styles.cardSide}>
           <Text style={styles.cardTime}>{relativeTime(item.updatedAt)}</Text>
-          <Pressable
-            hitSlop={12}
-            onPress={() => confirmDelete(item)}
-            accessibilityRole="button"
-            accessibilityLabel={`Delete project ${item.name}`}
-          >
-            <Text style={styles.delete}>Delete</Text>
-          </Pressable>
         </View>
+        <Pressable
+          hitSlop={12}
+          onPress={() => confirmDelete(item)}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete project ${item.name}`}
+          style={styles.deleteBtn}
+        >
+          <Text style={styles.deleteText}>Delete</Text>
+        </Pressable>
       </Pressable>
     ),
     [openProject, confirmDelete],
@@ -149,13 +144,18 @@ export default function ProjectsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header (tab layout hides the native header) */}
+      <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
+        <Text style={styles.title}>Projects</Text>
+        <Text style={styles.subtitle}>
+          {hydrated ? `${projects.length} saved` : 'Loading…'}
+        </Text>
+      </View>
+
+      {/* Action bar */}
       <View style={styles.actions}>
-        <Pressable style={[styles.btn, styles.primary]} onPress={newBlank}>
-          <Text style={styles.btnText}>+ New</Text>
-        </Pressable>
-        <Pressable style={[styles.btn, styles.secondary]} onPress={newFromTemplate}>
-          <Text style={styles.btnTextDark}>Template</Text>
-        </Pressable>
+        <Button label="+ New" onPress={newBlank} variant="primary" />
+        <Button label="Template" onPress={newFromTemplate} variant="secondary" />
       </View>
 
       <FlatList
@@ -176,55 +176,63 @@ export default function ProjectsScreen() {
             </Text>
           </View>
         }
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={
-          projects.length === 0 ? styles.listEmpty : styles.listContent
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={projects.length === 0 ? styles.listEmpty : styles.listContent}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: color.bg },
+  header: {
+    backgroundColor: color.surface,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: color.hairline,
+  },
+  title: { fontSize: type.heading, fontWeight: '700', color: color.textPrimary },
+  subtitle: { fontSize: type.meta, color: color.textFaint, marginTop: 2 },
   actions: {
     flexDirection: 'row',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#fff',
+    gap: space.sm,
+    padding: space.lg,
+    backgroundColor: color.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: color.hairline,
   },
-  btn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  primary: { backgroundColor: '#2563eb' },
-  secondary: { backgroundColor: '#eef2ff' },
-  btnText: { color: '#fff', fontWeight: '600' },
-  btnTextDark: { color: '#2563eb', fontWeight: '600' },
   list: { flex: 1 },
-  listContent: { paddingVertical: 8 },
+  listContent: { paddingVertical: space.md },
   listEmpty: { flex: 1 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: color.surface,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md + 2,
+    gap: space.md,
   },
-  cardMain: { flex: 1, marginRight: 12 },
-  cardName: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  cardMeta: {
-    fontSize: 12,
-    color: '#6b7280',
+  cardPressed: { backgroundColor: color.surfaceMuted },
+  cardBody: { flex: 1 },
+  cardName: { fontSize: type.body + 1, fontWeight: '600', color: color.textPrimary },
+  cardPreview: {
+    fontSize: type.meta,
+    color: color.textMuted,
     fontFamily: 'monospace',
     marginTop: 2,
   },
-  cardSide: { alignItems: 'flex-end' },
-  cardTime: { fontSize: 11, color: '#9ca3af', marginBottom: 4 },
-  delete: { fontSize: 12, color: '#dc2626', fontWeight: '600' },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: '#f0f0f0', marginLeft: 16 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  emptyHint: { fontSize: 13, color: '#9ca3af', marginTop: 6, textAlign: 'center' },
+  cardTime: { fontSize: type.micro, color: color.textFaint, marginTop: 4 },
+  deleteBtn: {
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  deleteText: { fontSize: type.meta, color: color.danger, fontWeight: '600' },
+  sep: { height: StyleSheet.hairlineWidth, backgroundColor: color.hairline, marginLeft: space.lg },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xxl },
+  emptyTitle: { fontSize: type.title, fontWeight: '700', color: color.textSecondary },
+  emptyHint: { fontSize: type.body, color: color.textFaint, marginTop: space.sm, textAlign: 'center', lineHeight: 20 },
 });
+
