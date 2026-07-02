@@ -25,7 +25,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CodeEditor } from '@/components/editor/CodeEditor';
+// NOTE: the CodeMirror-in-WebView editor (components/editor/CodeEditor) renders
+// blank in the release build (a WebView/CM init issue — under investigation).
+// Using a native TextInput fallback for v1 so the app is fully usable; syntax
+// highlighting / indent / find-and-replace return once the WebView bug is fixed.
 import { Console } from '@/components/console/Console';
 import { ConsoleInput } from '@/components/console/ConsoleInput';
 import { Badge, Button } from '@/components/ui/Button';
@@ -169,9 +172,22 @@ export default function EditorScreen() {
         <Badge label={badge.label} fg={badge.fg} bg={badge.bg} />
       </View>
 
-      {/* Editor (grows) */}
+      {/* Editor (grows) — native TextInput fallback (see note near imports). */}
       <View style={styles.editorWrap}>
-        <CodeEditor value={source} onChange={onSourceChange} />
+        <TextInput
+          value={source}
+          onChangeText={onSourceChange}
+          multiline
+          editable={!isBusy}
+          textAlignVertical="top"
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          scrollEnabled
+          style={styles.codeInput}
+          placeholder="// Write Java here…"
+          placeholderTextColor={color.textFaint}
+        />
       </View>
 
       {/* Toolbar: Run / Stop / Clear */}
@@ -239,6 +255,15 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
   },
   editorWrap: { flex: 1, backgroundColor: color.surface },
+  codeInput: {
+    flex: 1,
+    padding: space.md,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: type.body,
+    lineHeight: 20,
+    color: color.textPrimary,
+    backgroundColor: color.surface,
+  },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',

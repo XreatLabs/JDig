@@ -46,6 +46,7 @@ const readonlyCompartment = new Compartment();
 
 let view = null;
 let applyingRemote = false; // guards onChange feedback loops
+let initReceived = false;
 
 const fixedExtensions = [
   lineNumbers(),
@@ -189,6 +190,7 @@ function handleBridgeMessage(raw) {
   switch (msg.type) {
     case "init":
       if (!view) {
+        initReceived = true;
         createEditor(msg);
         sendToHost({ type: "ready", value: view.state.doc.toString() });
       }
@@ -211,4 +213,20 @@ function handleBridgeMessage(raw) {
 }
 
 // Signal to the host that the script has loaded and is awaiting init.
-sendToHost({ type: "loaded" });
+// ReactNativeWebView may be injected AFTER our inline script parses, so poll
+// until it exists and re-send periodically until the host responds with "init"
+// (covers the case where the first message is lost before the native message
+// channel is fully established on a release build).
+function signalLoaded() {
+  if (window.ReactNativeWebView) {
+    sendToHost({ type: "loaded" });
+  }
+  if (!initReceived) {
+    setTimeout(signalLoaded, 200);
+  }
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", signalLoaded);
+} else {
+  signalLoaded();
+}
