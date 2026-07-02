@@ -23,6 +23,8 @@ import {
   bracketMatching,
   foldGutter,
   foldKeymap,
+  syntaxHighlighting,
+  defaultHighlightStyle,
 } from "@codemirror/language";
 import { java } from "@codemirror/lang-java";
 import {
@@ -59,6 +61,7 @@ const fixedExtensions = [
   indentOnInput(),
   indentUnit.of("    "),
   java(),
+  syntaxHighlighting(defaultHighlightStyle),
   keymap.of([
     // Ctrl-F / Cmd-F opens find & replace.
     { key: "Mod-f", run: openSearchPanel },
@@ -92,22 +95,22 @@ function buildTheme(dark) {
       "&": {
         height: "100%",
         fontSize: "14px",
-        backgroundColor: dark ? "#1e1e1e" : "#ffffff",
-        color: dark ? "#d4d4d4" : "#1f1f1f",
+        backgroundColor: dark ? "#000000" : "#ffffff",
+        color: dark ? "#fafafa" : "#1f1f1f",
       },
       ".cm-content": {
-        caretColor: dark ? "#aeafad" : "#000000",
+        caretColor: dark ? "#ffffff" : "#000000",
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
         padding: "8px 0",
       },
       ".cm-gutters": {
-        backgroundColor: dark ? "#1e1e1e" : "#fafafa",
-        color: dark ? "#6a9955" : "#858585",
+        backgroundColor: dark ? "#0b0b0d" : "#fafafa",
+        color: dark ? "#5a5a60" : "#858585",
         border: "none",
       },
       "&.cm-focused .cm-cursor": {
-        borderLeftColor: dark ? "#aeafad" : "#000000",
+        borderLeftColor: dark ? "#ffffff" : "#000000",
       },
     },
     { dark }
@@ -206,6 +209,11 @@ function handleBridgeMessage(raw) {
       break;
     case "getValue":
       sendToHost({ type: "value", value: view ? view.state.doc.toString() : "" });
+      break;
+    case "insertText":
+      // Insert at the current selection (the accessory code-key bar uses this
+      // to drop in characters the phone keyboard lacks, e.g. braces / Tab).
+      if (view) view.dispatch(view.state.replaceSelection(msg.text || ""));
       break;
     default:
       break;

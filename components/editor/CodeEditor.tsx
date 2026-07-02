@@ -14,7 +14,14 @@
  * RIGHT of the caret. Do NOT re-add drawSelection().
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { StyleSheet, View, Platform } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { getSource } from "./editorHtml";
@@ -26,10 +33,19 @@ export interface CodeEditorProps {
   onChange: (value: string) => void;
   /** When true, the document is non-editable. */
   readOnly?: boolean;
-  /** Optional dark theme. Defaults to light. */
+  /** Dark theme. Defaults to true (JDig is a pitch-black dark app). */
   dark?: boolean;
   /** Style applied to the outer container. */
   style?: import("react-native").ViewStyle;
+}
+
+/** Imperative handle exposed via the CodeEditor ref. */
+export interface CodeEditorHandle {
+  /**
+   * Insert text at the current editor selection (used by the accessory
+   * code-key bar to drop in characters the phone keyboard lacks).
+   */
+  insert: (text: string) => void;
 }
 
 type Inbound =
@@ -41,13 +57,11 @@ type Inbound =
 
 const INJECT_DEBOUNCE_MS = 250;
 
-export function CodeEditor({
-  value,
-  onChange,
-  readOnly = false,
-  dark = false,
-  style,
-}: CodeEditorProps) {
+export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
+  function CodeEditor(
+    { value, onChange, readOnly = false, dark = true, style },
+    ref,
+  ) {
   const webviewRef = useRef<WebView | null>(null);
 
   // Tracks whether the WebView has signalled it parsed init and is ready to
@@ -73,6 +87,16 @@ export function CodeEditor({
     )});}catch(e){}})();`;
     ref.injectJavaScript(js);
   }, []);
+
+  // Expose an imperative insert() so the accessory code-key bar can drop in
+  // characters at the cursor without round-tripping through props.
+  useImperativeHandle(
+    ref,
+    () => ({
+      insert: (text: string) => post({ type: "insertText", text }),
+    }),
+    [post],
+  );
 
   // Keep latest props in refs so the (once-created) message handler reads
   // current values without needing to re-bind on every keystroke.
@@ -210,7 +234,8 @@ export function CodeEditor({
       />
     </View>
   );
-}
+  },
+);
 
 const styles = StyleSheet.create({
   container: {
