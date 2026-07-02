@@ -53,7 +53,9 @@ type Inbound =
   | { type: "ready"; value: string }
   | { type: "change"; value: string }
   | { type: "selection"; from: number; to: number }
-  | { type: "value"; value: string };
+  | { type: "value"; value: string }
+  | { type: "__error"; kind?: string; msg?: string; stack?: string }
+  | { type: "__log"; msg?: string };
 
 const INJECT_DEBOUNCE_MS = 250;
 
@@ -180,6 +182,13 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
       if (!msg || typeof msg !== "object") return;
 
       switch (msg.type) {
+        case "__error":
+          // Surface a WebView JS error to logcat (release has no console).
+          console.warn("[CM WebView]", JSON.stringify(msg));
+          break;
+        case "__log":
+          console.log("[CM]", (msg as { msg?: string }).msg);
+          break;
         case "loaded":
           // CM script parsed; send init with current props (read from refs).
           post({

@@ -36,7 +36,7 @@ import { ConsoleInput } from '@/components/console/ConsoleInput';
 import { Badge, Button } from '@/components/ui/Button';
 import { useProjectsStore } from '@/store/projectsStore';
 import { useRunStore } from '@/store/runStore';
-import { color, shadow, space, type, radius } from '@/theme/tokens';
+import { color, font, shadow, space, type, radius } from '@/theme/tokens';
 
 const AUTOSAVE_DEBOUNCE_MS = 600;
 
@@ -68,6 +68,8 @@ export default function EditorScreen() {
   // when the FAB is tapped. Closing just hides the dialog (the run continues
   // unless Stop is pressed).
   const [isRunOpen, setIsRunOpen] = useState(false);
+  // Tracks unsaved edits so the header can show a "saving…/saved" status.
+  const [dirty, setDirty] = useState(false);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Latest source + id in refs so the unmount cleanup (empty-deps effect)
   // reads current values instead of a stale first-render closure.
@@ -91,10 +93,12 @@ export default function EditorScreen() {
   const onSourceChange = useCallback(
     (next: string) => {
       setSource(next);
+      setDirty(true);
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
       autosaveTimer.current = setTimeout(() => {
         const id = projectIdRef.current;
         if (id) save(id, next);
+        setDirty(false);
       }, AUTOSAVE_DEBOUNCE_MS);
     },
     [save],
@@ -178,6 +182,9 @@ export default function EditorScreen() {
             <Text style={styles.nameChevron}>▾</Text>
           </Pressable>
         )}
+        <Text style={[styles.saveStatus, dirty && styles.saveStatusBusy]}>
+          {dirty ? 'saving…' : 'saved'}
+        </Text>
         <Badge label={badge.label} fg={badge.fg} bg={badge.bg} />
       </View>
 
@@ -291,11 +298,20 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: radius.pill,
     backgroundColor: color.accent,
-    ...shadow.md,
+    ...shadow.glow,
   },
   fabPressed: { backgroundColor: color.accentHover, opacity: 0.92 },
-  fabGlyph: { fontSize: type.body, fontWeight: '800', color: '#fff' },
-  fabLabel: { fontSize: type.body, fontWeight: '700', color: '#fff' },
+  fabGlyph: { fontSize: type.body, fontWeight: '800', color: '#11111b' },
+  fabLabel: { fontSize: type.body, fontWeight: '700', color: '#11111b' },
+  saveStatus: {
+    fontSize: type.micro,
+    fontFamily: font.mono,
+    color: color.textFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginRight: space.sm,
+  },
+  saveStatusBusy: { color: color.accent },
   // Run dialog.
   modalOuter: { flex: 1, backgroundColor: color.bg },
   modalHeader: {

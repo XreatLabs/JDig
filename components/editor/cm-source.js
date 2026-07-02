@@ -24,8 +24,9 @@ import {
   foldGutter,
   foldKeymap,
   syntaxHighlighting,
-  defaultHighlightStyle,
+  HighlightStyle,
 } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 import { java } from "@codemirror/lang-java";
 import {
   highlightSelectionMatches,
@@ -46,6 +47,26 @@ import {
 const themeCompartment = new Compartment();
 const readonlyCompartment = new Compartment();
 
+// Catppuccin Mocha syntax palette (matches theme/tokens.ts `syntax`). Plain
+// tags only — the `definition`/`special` modifier API differs across
+// @lezer/highlight versions and throws at bundle init; plain tags color Java
+// tokens reliably (keyword/type/function/string/etc.).
+const catppuccinHighlight = HighlightStyle.define([
+  { tag: tags.comment, color: "#6c7086", fontStyle: "italic" },
+  { tag: tags.keyword, color: "#cba6f7" },
+  { tag: tags.atom, color: "#f38ba8" },
+  { tag: tags.number, color: "#fab387" },
+  { tag: tags.string, color: "#a6e3a1" },
+  { tag: tags.typeName, color: "#f9e2af" },
+  { tag: tags.className, color: "#f9e2af" },
+  { tag: tags.function, color: "#89b4fa" },
+  { tag: tags.propertyName, color: "#89b4fa" },
+  { tag: tags.variableName, color: "#cdd6f4" },
+  { tag: tags.operator, color: "#89dceb" },
+  { tag: tags.punctuation, color: "#9399b2" },
+  { tag: tags.meta, color: "#f5c2e7" },
+]);
+
 let view = null;
 let applyingRemote = false; // guards onChange feedback loops
 let initReceived = false;
@@ -61,7 +82,7 @@ const fixedExtensions = [
   indentOnInput(),
   indentUnit.of("    "),
   java(),
-  syntaxHighlighting(defaultHighlightStyle),
+  syntaxHighlighting(catppuccinHighlight),
   keymap.of([
     // Ctrl-F / Cmd-F opens find & replace.
     { key: "Mod-f", run: openSearchPanel },
@@ -96,21 +117,31 @@ function buildTheme(dark) {
         height: "100%",
         fontSize: "14px",
         backgroundColor: dark ? "#000000" : "#ffffff",
-        color: dark ? "#fafafa" : "#1f1f1f",
+        color: dark ? "#cdd6f4" : "#1f1f1f",
       },
       ".cm-content": {
-        caretColor: dark ? "#ffffff" : "#000000",
+        caretColor: dark ? "#cba6f7" : "#000000",
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-        padding: "8px 0",
+        padding: "10px 0",
       },
       ".cm-gutters": {
-        backgroundColor: dark ? "#0b0b0d" : "#fafafa",
-        color: dark ? "#5a5a60" : "#858585",
+        backgroundColor: dark ? "#0c0c13" : "#fafafa",
+        color: dark ? "#585b70" : "#858585",
         border: "none",
       },
       "&.cm-focused .cm-cursor": {
-        borderLeftColor: dark ? "#ffffff" : "#000000",
+        borderLeftColor: dark ? "#cba6f7" : "#000000",
+      },
+      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
+        backgroundColor: dark ? "rgba(203,166,247,0.22)" : "#d7d7d7",
+      },
+      ".cm-activeLine": {
+        backgroundColor: dark ? "rgba(203,166,247,0.05)" : "rgba(0,0,0,0.03)",
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "transparent",
+        color: dark ? "#a6adc8" : "#000000",
       },
     },
     { dark }

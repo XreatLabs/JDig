@@ -1,36 +1,54 @@
 /**
  * Tab layout — the app's primary navigation surface.
  *
- * Two tabs: Projects (list/CRUD) and Editor (the run-orchestration split).
- * The Editor tab reads `projectId` from the URL query; the tab index route
- * redirects to Projects so the app always lands on the list.
- *
- * Tab bar uses the design tokens (single default theme; theming deferred).
+ * Two tabs: Projects and Editor. The Editor tab reads `projectId` from the URL.
+ * While the user is typing in the editor (system keyboard up), the tab bar HIDES
+ * so editing is full-screen and the accessory key bar is reachable (the bar sits
+ * above the keyboard). It reappears when the keyboard closes.
  */
+import { useEffect, useState } from 'react';
+import { Keyboard, Text } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { color, space, type } from '@/theme/tokens';
 
-function TabIcon({ label, active }: { label: string; active: boolean }) {
+function TabGlyph({ glyph, active }: { glyph: string; active: boolean }) {
   return (
-    <Text style={{ fontSize: type.body, fontWeight: active ? '700' : '500', color: active ? color.accent : color.textMuted }}>
-      {label}
+    <Text
+      style={{
+        fontSize: type.body,
+        color: active ? color.accent : color.textMuted,
+      }}
+    >
+      {glyph}
     </Text>
   );
 }
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
+          display: keyboardOpen ? 'none' : 'flex',
           backgroundColor: color.surface,
           borderTopWidth: 1,
           borderTopColor: color.hairline,
-          height: 52 + insets.bottom,
+          height: 54 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingHorizontal: space.lg,
         },
@@ -44,14 +62,14 @@ export default function TabsLayout() {
         name="projects"
         options={{
           title: 'Projects',
-          tabBarIcon: ({ focused }) => <TabIcon label="▦" active={focused} />,
+          tabBarIcon: ({ focused }) => <TabGlyph glyph="▦" active={focused} />,
         }}
       />
       <Tabs.Screen
         name="editor"
         options={{
           title: 'Editor',
-          tabBarIcon: ({ focused }) => <TabIcon label="‹›" active={focused} />,
+          tabBarIcon: ({ focused }) => <TabGlyph glyph="‹›" active={focused} />,
         }}
       />
     </Tabs>

@@ -72,19 +72,19 @@ const styles = StyleSheet.create({
   stdout: {
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#e8e8ec',
+    color: color.consoleText,
     lineHeight: 18,
   },
   stderr: {
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#f87171',
+    color: color.consoleErr,
     lineHeight: 18,
   },
   empty: {
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#8e8e93',
+    color: color.consoleDim,
     fontStyle: 'italic',
   },
 });

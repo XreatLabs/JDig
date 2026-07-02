@@ -1,16 +1,15 @@
 /**
- * Design tokens — the single default theme for JDig (v1): a pitch-black dark
- * surface. We ship ONE consistent theme (theming/multiple palettes is an
- * explicit non-goal for v1). These tokens encode the spacing scale, color
- * ramp, type sizes, radii, and shadows used across every screen so the UI has
- * a single source of truth (per the layout skill: a consistent 4pt spacing
- * scale + hierarchy through space/weight, not ad-hoc values).
+ * Design tokens — JDig's "midnight terminal" theme: pitch-black canvas with the
+ * Catppuccin Mocha palette as the accent + syntax system. Mauve is the signature
+ * accent (not generic indigo). One consistent theme (multi-theme is a v1 non-goal).
  *
- * Mobile-first: touch targets meet the 44pt minimum; spacing favors the
- * tighter end for a code-focused surface (editor + console are data-dense).
+ * These tokens are the single source of truth consumed by every screen +
+ * component, so changing a value here restyles the whole app. The Catppuccin
+ * syntax colors are also reused by the CodeMirror HighlightStyle (cm-source.js)
+ * and any in-app code rendering, keeping the editor + chrome visually unified.
  */
 
-/** 4pt base spacing scale (per layout skill: 4pt beats 8pt — 12 is needed). */
+/** 4pt base spacing scale (4pt beats 8pt; 12 is needed for data-dense surfaces). */
 export const space = {
   xs: 4,
   sm: 8,
@@ -21,14 +20,15 @@ export const space = {
   xxxl: 48,
 } as const;
 
-/** Type scale (React Native font sizes, pt). */
+/** Type scale (RN font sizes, pt). Mono-forward for a code-editor feel. */
 export const type = {
   code: 13,
   body: 14,
   meta: 12,
   micro: 11,
   title: 16,
-  heading: 20,
+  heading: 22,
+  display: 28,
 } as const;
 
 /** Line heights. */
@@ -41,77 +41,133 @@ export const leading = {
 export const radius = {
   none: 0,
   sm: 6,
-  md: 8,
-  lg: 12,
+  md: 10,
+  lg: 14,
+  xl: 20,
   pill: 999,
 } as const;
 
-/**
- * Color system — pitch-black dark surface with a confident indigo accent.
- * The console shares the same near-black panel as the chrome (it is no longer
- * a contrasting dark-on-light element; the whole app is dark).
- */
-export const color = {
-  // surfaces
-  bg: '#000000',
-  surface: '#0b0b0d',
-  surfaceMuted: '#16161a',
-  hairline: '#232328',
-  hairlineStrong: '#34343c',
-
-  // text
-  textPrimary: '#fafafa',
-  textSecondary: '#c7c7cc',
-  textMuted: '#8e8e93',
-  textFaint: '#5a5a60',
-
-  // brand / semantic
-  accent: '#6366f1',
-  accentHover: '#4f46e5',
-  accentSoft: 'rgba(99,102,241,0.16)',
-  danger: '#f87171',
-  dangerSoft: 'rgba(248,113,113,0.16)',
-  success: '#34d399',
-  warning: '#fbbf24',
-
-  // console (same near-black as the chrome)
-  consoleBg: '#000000',
-  consoleText: '#e8e8ec',
-  consoleDim: '#8e8e93',
-  consoleErr: '#f87171',
-  consolePrompt: '#34d399',
-  consoleInputBorder: '#232328',
+/** Font families (system stacks; offline, no bundled font files). Mono for code. */
+export const font = {
+  mono: 'monospace',
+  sans: 'System',
 } as const;
 
-/** Elevation scale (subtle; reinforces hierarchy, not decoration). */
+/**
+ * Color system — pitch-black surface with Catppuccin Mocha accents.
+ * Background is true #000 (per user pref); surfaces carry a faint cool tint so
+ * elevation reads against the black canvas.
+ */
+export const color = {
+  // surfaces (cool-tinted blacks for elevation)
+  bg: '#000000',
+  surface: '#0c0c13',
+  surfaceMuted: '#14141d',
+  surfaceRaised: '#1b1b27',
+  hairline: '#232331',
+  hairlineStrong: '#34344a',
+
+  // text (Catppuccin Mocha text ramp)
+  textPrimary: '#cdd6f4',
+  textSecondary: '#a6adc8',
+  textMuted: '#7f849c',
+  textFaint: '#585b70',
+
+  // brand / semantic (Catppuccin)
+  accent: '#cba6f7', // mauve — signature
+  accentHover: '#b4befe', // lavender
+  accentSoft: 'rgba(203,166,247,0.16)',
+  accentGlow: 'rgba(203,166,247,0.55)', // for the Run FAB glow
+  blue: '#89b4fa',
+  sapphire: '#74c7ec',
+  sky: '#89dceb',
+  teal: '#94e2d5',
+  green: '#a6e3a1',
+  yellow: '#f9e2af',
+  peach: '#fab387',
+  maroon: '#eba0ac',
+  red: '#f38ba8',
+  pink: '#f5c2e7',
+  flamingo: '#f2cdcd',
+  rosewater: '#f5e0dc',
+
+  danger: '#f38ba8',
+  dangerSoft: 'rgba(243,139,168,0.16)',
+  success: '#a6e3a1',
+  successSoft: 'rgba(166,227,161,0.16)',
+  warning: '#f9e2af',
+  warningSoft: 'rgba(249,226,175,0.16)',
+
+  // console (shares the black canvas)
+  consoleBg: '#000000',
+  consoleText: '#cdd6f4',
+  consoleDim: '#7f849c',
+  consoleErr: '#f38ba8',
+  consolePrompt: '#a6e3a1',
+  consoleInputBorder: '#232331',
+} as const;
+
+/** Catppuccin Mocha syntax token colors (used by the CM HighlightStyle). */
+export const syntax = {
+  keyword: '#cba6f7', // mauve
+  controlKeyword: '#cba6f7',
+  definitionKeyword: '#cba6f7',
+  string: '#a6e3a1', // green
+  number: '#fab387', // peach
+  comment: '#6c7086', // overlay0
+  type: '#f9e2af', // yellow
+  typeName: '#f9e2af',
+  className: '#f9e2af',
+  function: '#89b4fa', // blue
+  method: '#89b4fa',
+  variable: '#cdd6f4', // text
+  localVariable: '#cdd6f4',
+  property: '#89b4fa',
+  operator: '#89dceb', // sky
+  punctuation: '#9399b2', // overlay2
+  constant: '#fab387', // peach (true/false/null)
+  atom: '#f38ba8', // red (this/super)
+  meta: '#f5c2e7', // pink (annotations)
+  bracket: '#9399b2',
+} as const;
+
+/** Elevation (subtle; hierarchy, not decoration). The accent glow lifts the FAB. */
 export const shadow = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowRadius: 2,
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.18,
     elevation: 1,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    shadowOpacity: 0.08,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 8,
+    shadowOpacity: 0.22,
+    elevation: 3,
+  },
+  /** Accent glow — used by the Run FAB so it reads as the primary action. */
+  glow: {
+    shadowColor: color.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 16,
+    shadowOpacity: 0.6,
+    elevation: 6,
   },
 } as const;
 
 /** Minimum touch target (pt). */
 export const touchTarget = 44;
 
-/** Run-lifecycle badge metadata (color + label) per runStore state. */
+/** Run-lifecycle badge metadata (Catppuccin colors) per runStore state. */
 export const runBadge: Record<
   'idle' | 'running' | 'waiting-input' | 'done' | 'error',
   { label: string; fg: string; bg: string }
 > = {
   idle: { label: 'Idle', fg: color.textMuted, bg: color.surfaceMuted },
   running: { label: 'Running', fg: color.accent, bg: color.accentSoft },
-  'waiting-input': { label: 'Input', fg: color.success, bg: 'rgba(52,211,153,0.16)' },
-  done: { label: 'Done', fg: color.textSecondary, bg: color.surfaceMuted },
+  'waiting-input': { label: 'Input', fg: color.success, bg: color.successSoft },
+  done: { label: 'Done', fg: color.success, bg: color.successSoft },
   error: { label: 'Error', fg: color.danger, bg: color.dangerSoft },
 };
