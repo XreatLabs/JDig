@@ -1,11 +1,12 @@
 /**
- * Editor screen (Phase 5, step 22) — the run-orchestration surface.
+ * Editor screen — the run-orchestration surface.
  *
- * Splits the screen into the CodeEditor (top, growable) and the Console
- * (bottom, fixed-ish height). A toolbar exposes Run / Stop / Clear and a
- * run-lifecycle badge; the project name is editable inline. Source edits are
- * debounced into the projects store (autosave); Run hands the current source
- * to runJava via the run store.
+ * The CodeEditor now owns the full screen (more room for code). The console
+ * is HIDDEN by default and opened as a modal dialog when a run starts: the
+ * primary Run control is a floating action button (FAB) bottom-right, and a
+ * run-state-driven Modal hosts the Console + ConsoleInput + Stop. An accessory
+ * CodeKeyBar sits just above the system keyboard so the phone can type
+ * characters it lacks (Tab, braces, brackets, ...).
  *
  * The Console + ConsoleInput read their state from the run store directly, so
  * this screen only has to (a) feed the editor, (b) trigger runs, and (c) tear
@@ -14,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  LayoutAnimation,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -25,19 +26,19 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// NOTE: the CodeMirror-in-WebView editor (components/editor/CodeEditor) renders
-// blank in the release build (a WebView/CM init issue — under investigation).
-// Using a native TextInput fallback for v1 so the app is fully usable; syntax
-// highlighting / indent / find-and-replace return once the WebView bug is fixed.
+import {
+  CodeEditor,
+  type CodeEditorHandle,
+} from '@/components/editor/CodeEditor';
+import { CodeKeyBar } from '@/components/editor/CodeKeyBar';
 import { Console } from '@/components/console/Console';
 import { ConsoleInput } from '@/components/console/ConsoleInput';
 import { Badge, Button } from '@/components/ui/Button';
 import { useProjectsStore } from '@/store/projectsStore';
 import { useRunStore } from '@/store/runStore';
-import { color, shadow, space, type } from '@/theme/tokens';
+import { color, shadow, space, type, radius } from '@/theme/tokens';
 
 const AUTOSAVE_DEBOUNCE_MS = 600;
-const CONSOLE_REST_HEIGHT = 220;
 
 export default function EditorScreen() {
   const { projectId } = useLocalSearchParams<{ projectId: string }>();
@@ -55,11 +56,18 @@ export default function EditorScreen() {
   const clear = useRunStore((s) => s.clear);
   const dispose = useRunStore((s) => s.dispose);
 
+  // Imperative handle to the CodeMirror editor (for the accessory key bar).
+  const editorRef = useRef<CodeEditorHandle>(null);
+
   // Local source mirror so typing feels instant; we sync down from the store
   // when the project changes and push up (debounced) on edit.
   const [source, setSource] = useState(project?.source ?? '');
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(project?.name ?? '');
+  // Run dialog visibility. Auto-opens when a run becomes active; also opens
+  // when the FAB is tapped. Closing just hides the dialog (the run continues
+  // unless Stop is pressed).
+  const [isRunOpen, setIsRunOpen] = useState(false);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Latest source + id in refs so the unmount cleanup (empty-deps effect)
   // reads current values instead of a stale first-render closure.
@@ -107,6 +115,7 @@ export default function EditorScreen() {
   const onRun = useCallback(() => {
     // Save immediately so a crash/abort still persists the latest source.
     if (projectId) save(projectId, source);
+    setIsRunOpen(true);
     void run(source);
   }, [projectId, save, source, run]);
 
@@ -120,7 +129,7 @@ export default function EditorScreen() {
     const map = {
       idle: { label: 'Idle', fg: color.textMuted, bg: color.surfaceMuted },
       running: { label: 'Running', fg: color.accent, bg: color.accentSoft },
-      'waiting-input': { label: 'Awaiting input', fg: color.success, bg: '#ecfdf5' },
+      'waiting-input': { label: 'Awaiting input', fg: color.success, bg: 'rgba(52,211,153,0.16)' },
       done: { label: 'Finished', fg: color.textSecondary, bg: color.surfaceMuted },
       error: { label: 'Error', fg: color.danger, bg: color.dangerSoft },
     } as const;
@@ -172,62 +181,77 @@ export default function EditorScreen() {
         <Badge label={badge.label} fg={badge.fg} bg={badge.bg} />
       </View>
 
-      {/* Editor (grows) — native TextInput fallback (see note near imports). */}
+      {/* Editor fills the screen (console is now a modal). */}
       <View style={styles.editorWrap}>
-        <TextInput
-          value={source}
-          onChangeText={onSourceChange}
-          multiline
-          editable={!isBusy}
-          textAlignVertical="top"
-          autoCapitalize="none"
-          autoCorrect={false}
-          spellCheck={false}
-          scrollEnabled
-          style={styles.codeInput}
-          placeholder="// Write Java here…"
-          placeholderTextColor={color.textFaint}
-        />
+        <CodeEditor ref={editorRef} value={source} onChange={onSourceChange} />
       </View>
 
-      {/* Toolbar: Run / Stop / Clear */}
-      <View style={styles.toolbar}>
-        {!isBusy ? (
-          <Button label="Run" onPress={onRun} variant="primary" />
-        ) : (
-          <Button label="Stop" onPress={stop} variant="danger" />
-        )}
-        <Button label="Clear" onPress={clear} variant="ghost" size="sm" disabled={isBusy} />
-        {result && (
-          <Text style={styles.meta} numberOfLines={1}>
-            {result.ok
-              ? `${result.steps.toLocaleString()} steps · ${result.durationMs} ms`
-              : result.reason === 'aborted'
-                ? 'stopped'
-                : result.reason}
-          </Text>
-        )}
-      </View>
+      {/* Accessory code-key bar: pinned just above the tab bar / system
+          keyboard so the extra keys are reachable while typing. */}
+      <CodeKeyBar onKey={(t) => editorRef.current?.insert(t)} />
 
-      {/* Console panel (fixed height; grows when input is needed). */}
-      <ConsolePanel restHeight={CONSOLE_REST_HEIGHT} />
+      {/* Floating Run FAB (bottom-right). The primary run control. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={isBusy ? 'Stop program' : 'Run program'}
+        onPress={isBusy ? stop : onRun}
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+      >
+        <Text style={styles.fabGlyph}>{isBusy ? '■' : '▶'}</Text>
+        <Text style={styles.fabLabel}>{isBusy ? 'Stop' : 'Run'}</Text>
+      </Pressable>
+
+      {/* Run dialog: opens when a run starts (or the FAB is tapped). */}
+      <Modal
+        visible={isRunOpen}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsRunOpen(false)}
+      >
+        <View style={[styles.modalOuter, { paddingTop: insets.top }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Output</Text>
+            <Badge label={badge.label} fg={badge.fg} bg={badge.bg} />
+            <View style={{ flex: 1 }} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close output"
+              onPress={() => setIsRunOpen(false)}
+              style={styles.closeBtn}
+              hitSlop={10}
+            >
+              <Text style={styles.closeGlyph}>✕</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.modalBody}>
+            <Console />
+          </View>
+
+          <ConsoleInput />
+
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + space.sm }]}>
+            <View style={{ flex: 1 }}>
+              {result && (
+                <Text style={styles.meta} numberOfLines={1}>
+                  {result.ok
+                    ? `${result.steps.toLocaleString()} steps · ${result.durationMs} ms`
+                    : result.reason === 'aborted'
+                      ? 'stopped'
+                      : result.reason}
+                </Text>
+              )}
+            </View>
+            {isBusy ? (
+              <Button label="Stop" onPress={stop} variant="danger" />
+            ) : (
+              <Button label="Run again" onPress={onRun} variant="primary" />
+            )}
+            <Button label="Clear" onPress={clear} variant="ghost" size="sm" disabled={isBusy} />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
-  );
-}
-
-/** Console panel — animates its height when the input bar appears/disappears. */
-function ConsolePanel({ restHeight }: { restHeight: number }) {
-  const runState = useRunStore((s) => s.state);
-  const height = runState === 'waiting-input' ? restHeight + 52 : restHeight;
-  // Trigger a layout animation whenever the height changes for a smooth grow.
-  useEffect(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  }, [height]);
-  return (
-    <View style={[styles.consoleWrap, { height }]}>
-      <Console />
-      <ConsoleInput />
-    </View>
   );
 }
 
@@ -255,33 +279,61 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
   },
   editorWrap: { flex: 1, backgroundColor: color.surface },
-  codeInput: {
-    flex: 1,
-    padding: space.md,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: type.body,
-    lineHeight: 20,
-    color: color.textPrimary,
-    backgroundColor: color.surface,
+  // Floating Run FAB. Pinned bottom-right above the tab bar.
+  fab: {
+    position: 'absolute',
+    right: space.lg,
+    bottom: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    paddingHorizontal: space.lg,
+    height: 52,
+    borderRadius: radius.pill,
+    backgroundColor: color.accent,
+    ...shadow.md,
   },
-  toolbar: {
+  fabPressed: { backgroundColor: color.accentHover, opacity: 0.92 },
+  fabGlyph: { fontSize: type.body, fontWeight: '800', color: '#fff' },
+  fabLabel: { fontSize: type.body, fontWeight: '700', color: '#fff' },
+  // Run dialog.
+  modalOuter: { flex: 1, backgroundColor: color.bg },
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     backgroundColor: color.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: color.hairline,
-    ...shadow.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: color.hairline,
   },
-  meta: { flex: 1, fontSize: type.micro, color: color.textFaint, textAlign: 'right' },
-  consoleWrap: {
+  modalTitle: { fontSize: type.title, fontWeight: '700', color: color.textPrimary },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.surfaceMuted,
+  },
+  closeGlyph: { fontSize: type.body, fontWeight: '700', color: color.textSecondary },
+  modalBody: {
+    flex: 1,
     backgroundColor: color.consoleBg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: color.consoleInputBorder,
     overflow: 'hidden',
   },
+  modalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.lg,
+    paddingTop: space.sm,
+    backgroundColor: color.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.hairline,
+  },
+  meta: { fontSize: type.micro, color: color.textFaint },
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
