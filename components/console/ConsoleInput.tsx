@@ -9,6 +9,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRunStore } from '@/store/runStore';
+import { color } from '@/theme/tokens';
 
 export function ConsoleInput() {
   const state = useRunStore((s) => s.state);
@@ -43,7 +44,7 @@ export function ConsoleInput() {
         onChangeText={setValue}
         onSubmitEditing={onSubmit}
         placeholder="type a value and press Enter"
-        placeholderTextColor="#6e7681"
+        placeholderTextColor={color.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="done"
@@ -56,23 +57,23 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0b1021',
+    backgroundColor: color.consoleBg,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#1f2433',
+    borderTopColor: color.consoleInputBorder,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   prompt: {
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#7ee787',
+    color: color.consolePrompt,
     marginRight: 8,
   },
   input: {
     flex: 1,
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#e6edf3',
+    color: color.consoleText,
     paddingVertical: 4,
   },
 });

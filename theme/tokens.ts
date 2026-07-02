@@ -1,8 +1,7 @@
 /**
- * Design tokens — the single default theme for JDig (v1).
- *
- * Theming/dark-mode is an explicit non-goal for v1 (see spec Non-Goals); we
- * ship ONE consistent theme. These tokens encode the spacing scale, color
+ * Design tokens — the single default theme for JDig (v1): a pitch-black dark
+ * surface. We ship ONE consistent theme (theming/multiple palettes is an
+ * explicit non-goal for v1). These tokens encode the spacing scale, color
  * ramp, type sizes, radii, and shadows used across every screen so the UI has
  * a single source of truth (per the layout skill: a consistent 4pt spacing
  * scale + hierarchy through space/weight, not ad-hoc values).
@@ -48,40 +47,40 @@ export const radius = {
 } as const;
 
 /**
- * Color system. A near-neutral slate surface with a confident indigo accent
- * and a dark "console" panel that contrasts the light chrome (the console is
- * always dark, like a real terminal, even in v1's single theme).
+ * Color system — pitch-black dark surface with a confident indigo accent.
+ * The console shares the same near-black panel as the chrome (it is no longer
+ * a contrasting dark-on-light element; the whole app is dark).
  */
 export const color = {
   // surfaces
-  bg: '#f6f7f9',
-  surface: '#ffffff',
-  surfaceMuted: '#f1f3f5',
-  hairline: '#e5e7eb',
-  hairlineStrong: '#d1d5db',
+  bg: '#000000',
+  surface: '#0b0b0d',
+  surfaceMuted: '#16161a',
+  hairline: '#232328',
+  hairlineStrong: '#34343c',
 
   // text
-  textPrimary: '#111827',
-  textSecondary: '#4b5563',
-  textMuted: '#6b7280',
-  textFaint: '#9ca3af',
+  textPrimary: '#fafafa',
+  textSecondary: '#c7c7cc',
+  textMuted: '#8e8e93',
+  textFaint: '#5a5a60',
 
   // brand / semantic
-  accent: '#4f46e5',
-  accentHover: '#4338ca',
-  accentSoft: '#eef2ff',
-  danger: '#dc2626',
-  dangerSoft: '#fef2f2',
-  success: '#16a34a',
-  warning: '#d97706',
+  accent: '#6366f1',
+  accentHover: '#4f46e5',
+  accentSoft: 'rgba(99,102,241,0.16)',
+  danger: '#f87171',
+  dangerSoft: 'rgba(248,113,113,0.16)',
+  success: '#34d399',
+  warning: '#fbbf24',
 
-  // console (dark panel)
-  consoleBg: '#0b1021',
-  consoleText: '#e6edf3',
-  consoleDim: '#6e7681',
-  consoleErr: '#ff7b72',
-  consolePrompt: '#7ee787',
-  consoleInputBorder: '#1f2433',
+  // console (same near-black as the chrome)
+  consoleBg: '#000000',
+  consoleText: '#e8e8ec',
+  consoleDim: '#8e8e93',
+  consoleErr: '#f87171',
+  consolePrompt: '#34d399',
+  consoleInputBorder: '#232328',
 } as const;
 
 /** Elevation scale (subtle; reinforces hierarchy, not decoration). */
@@ -112,7 +111,7 @@ export const runBadge: Record<
 > = {
   idle: { label: 'Idle', fg: color.textMuted, bg: color.surfaceMuted },
   running: { label: 'Running', fg: color.accent, bg: color.accentSoft },
-  'waiting-input': { label: 'Input', fg: color.success, bg: '#ecfdf5' },
+  'waiting-input': { label: 'Input', fg: color.success, bg: 'rgba(52,211,153,0.16)' },
   done: { label: 'Done', fg: color.textSecondary, bg: color.surfaceMuted },
   error: { label: 'Error', fg: color.danger, bg: color.dangerSoft },
 };

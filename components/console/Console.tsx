@@ -10,6 +10,7 @@
 import React, { useEffect, useRef } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useRunStore, type OutputLine } from '@/store/runStore';
+import { color } from '@/theme/tokens';
 
 const keyExtractor = (item: OutputLine) => String(item.id);
 
@@ -62,7 +63,7 @@ export function Console() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0b1021',
+    backgroundColor: color.consoleBg,
   },
   content: {
     paddingVertical: 8,
@@ -71,19 +72,19 @@ const styles = StyleSheet.create({
   stdout: {
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#e6edf3',
+    color: '#e8e8ec',
     lineHeight: 18,
   },
   stderr: {
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#ff7b72',
+    color: '#f87171',
     lineHeight: 18,
   },
   empty: {
     fontFamily: 'monospace',
     fontSize: 13,
-    color: '#6e7681',
+    color: '#8e8e93',
     fontStyle: 'italic',
   },
 });
