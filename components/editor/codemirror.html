@@ -50,6 +50,80 @@
         color: #267f99;
       }
     </style>
+    <script>
+      // Forward WebView JS errors + console to RN so they show in logcat
+      // (release builds have no visible WebView console).
+      (function () {
+        function post(o) {
+          try {
+            window.ReactNativeWebView &&
+              window.ReactNativeWebView.postMessage(JSON.stringify(o));
+          } catch (e) {}
+        }
+        function asStr(a) {
+          try {
+            return typeof a === "object" ? JSON.stringify(a) : String(a);
+          } catch (_) {
+            return String(a);
+          }
+        }
+        window.addEventListener("error", function (e) {
+          post({
+            type: "__error",
+            kind: "error",
+            msg: e.message,
+            file: e.filename,
+            line: e.lineno,
+            stack: (e.error && e.error.stack) || "",
+          });
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e.reason;
+          post({
+            type: "__error",
+            kind: "rejection",
+            msg: (r && r.message) || "" + r,
+            stack: (r && r.stack) || "",
+          });
+        });
+        var oe = console.error;
+        console.error = function () {
+          try {
+            post({
+              type: "__error",
+              kind: "console.error",
+              msg: Array.prototype.map.call(arguments, asStr).join(" "),
+            });
+          } catch (_) {}
+          if (oe) return oe.apply(console, arguments);
+        };
+        var ol = console.log;
+        console.log = function () {
+          try {
+            post({
+              type: "__log",
+              msg: Array.prototype.map.call(arguments, asStr).join(" "),
+            });
+          } catch (_) {}
+          if (ol) return ol.apply(console, arguments);
+        };
+        // Immediate probe: confirms the inline script executed + whether the
+        // RN postMessage bridge is available at parse time.
+        post({ type: "__log", msg: "sniff installed; RWV=" + typeof window.ReactNativeWebView });
+        // Delayed probe: after the body should have parsed, report how many
+        // <script> tags the WebView sees, whether the bundle defined JDigBridge,
+        // and the body length — distinguishes HTML truncation from exec failure.
+        setTimeout(function () {
+          post({
+            type: "__log",
+            msg:
+              "after1s: scripts=" + document.scripts.length +
+              " JDigBridge=" + typeof window.JDigBridge +
+              " bodyLen=" + document.body.innerHTML.length,
+          });
+        }, 1200);
+      })();
+    </script>
   </head>
   <body>
     <div id="editor"></div>
